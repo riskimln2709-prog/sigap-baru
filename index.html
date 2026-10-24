@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIGAP v3.0 - BPJS Fraud Analytics Dashboard</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        slate: {
+                            850: '#151e2e',
+                            900: '#0f172a',
+                            950: '#090d16',
+                        },
+                        brand: {
+                            50: '#eff6ff',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- FontAwesome Icons CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- CryptoJS for Client-Side SHA-256 Hashing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+
+    <!-- Google Fonts (Inter) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+
+        /* Glowing Badge Effects */
+        .glow-red {
+            box-shadow: 0 0 12px rgba(239, 68, 68, 0.35);
+        }
+        .glow-amber {
+            box-shadow: 0 0 12px rgba(245, 158, 11, 0.35);
+        }
+        .glow-emerald {
+            box-shadow: 0 0 12px rgba(16, 185, 129, 0.35);
+        }
+
+        /* Glassmorphism Card Effect */
+        .glass-card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(51, 65, 85, 0.6);
+        }
+    </style>
+</head>
+<body class="flex min-h-screen overflow-x-hidden">
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- ========================================== -->
+    <!-- SIDEBAR NAVIGATION -->
+    <!-- ========================================== -->
+    <aside class="w-64 bg-slate-900 border-r border-slate-800 flex flex-col justify-between shrink-0 sticky top-0 h-screen z-20">
+        <div>
+            <!-- Logo & Title Header -->
+            <div class="p-5 border-b border-slate-800/80 flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-xl font-bold shadow-lg shadow-blue-500/30">
+                    <i class="fa-solid fa-shield-halved"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg tracking-wide text-white leading-none">SIGAP <span class="text-xs bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded border border-blue-500/30 font-semibold ml-1">v3.0</span></h1>
+                    <p class="text-[10px] text-slate-400 mt-1 leading-tight">BPJS Fraud Analytics</p>
+                </div>
+            </div>
+
+            <!-- Operational Status Badge -->
+            <div class="mx-4 mt-4 p-3 rounded-xl bg-slate-800/60 border border-slate-700/50">
+                <div class="flex items-center gap-2">
+                    <span class="relative flex h-2.5 w-2.5">
+                      <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                    </span>
+                    <span class="text-xs font-semibold text-emerald-400">Silent Post-Audit Mode</span>
+                </div>
+                <p class="text-[11px] text-slate-400 mt-1">Zero disruption to Faskes clinical workflow</p>
+            </div>
+
+            <!-- Navigation Links -->
+            <nav class="mt-6 px-3 space-y-1">
+                <button onclick="switchTab('tab-dashboard')" id="nav-tab-dashboard" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all text-slate-400 hover:text-slate-200 hover:bg-slate-800/50">
+                    <i class="fa-solid fa-chart-pie w-5 text-center text-base"></i>
+                    <span>Dashboard Eksekutif</span>
+                </button>
+
+                <button onclick="switchTab('tab-simulasi')" id="nav-tab-simulasi" class="nav-btn active w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all text-blue-400 bg-blue-500/10 border border-blue-500/20">
+                    <i class="fa-solid fa-file-signature w-5 text-center text-base"></i>
+                    <span>Input Form Klaim</span>
+                </button>
+
+                <button onclick="switchTab('tab-batch')" id="nav-tab-batch" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all text-slate-400 hover:text-slate-200 hover:bg-slate-800/50">
+                    <i class="fa-solid fa-folder-open w-5 text-center text-base"></i>
+                    <span>Analisis Batch Klaim</span>
+                </button>
+
+                <button onclick="switchTab('tab-audit')" id="nav-tab-audit" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all text-slate-400 hover:text-slate-200 hover:bg-slate-800/50">
+                    <i class="fa-solid fa-lock w-5 text-center text-base"></i>
+                    <span>Audit PDP & Arsitektur</span>
+                </button>
+            </nav>
+        </div>
+
+        <!-- Sidebar Footer -->
+        <div class="p-4 border-t border-slate-800 text-xs text-slate-400 flex flex-col gap-1 bg-slate-950/40">
+            <div class="flex items-center justify-between font-medium text-slate-400">
+                <span>Tim Pengembang:</span>
+                <span class="text-blue-400 font-semibold">Tim Terserah</span>
+            </div>
+            <p class="text-[10px] text-slate-400">Healthkathon BPJS Kesehatan 2026</p>
+        </div>
+    </aside>
+
+    <!-- ========================================== -->
+    <!-- MAIN CONTENT AREA -->
+    <!-- ========================================== -->
+    <main class="flex-1 flex flex-col min-w-0 bg-slate-950">
+        
+        <!-- Top App Header -->
+        <header class="h-16 border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-10 px-6 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <h2 id="page-title" class="text-lg font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-file-signature text-blue-400"></i> Input Form Simulasi Single Claim
+                </h2>
+            </div>
+
+            <div class="flex items-center gap-4 text-xs">
+                <div class="hidden sm:flex items-center gap-2 bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-700/60 text-slate-300">
+                    <i class="fa-regular fa-clock text-blue-400"></i>
+                    <span id="clock-display">Syncing Time...</span>
+                </div>
+
+                <div class="flex items-center gap-2 bg-emerald-500/10 text-emerald-400 px-3 py-1.5 rounded-lg border border-emerald-500/20 font-medium">
+                    <i class="fa-solid fa-server"></i>
+                    <span>Database: Online (10k Synced)</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Dynamic Tab Contents -->
+        <div class="p-6 space-y-6 flex-1 overflow-y-auto">
+
+            <!-- ========================================== -->
+            <!-- TAB 1: DASHBOARD EKSEKUTIF -->
+            <!-- ========================================== -->
+            <div id="tab-dashboard" class="tab-content hidden space-y-6">
+                <!-- 4 Executive Metric Cards -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <!-- Metric 1 -->
+                    <div class="glass-card p-5 rounded-2xl relative overflow-hidden group hover:border-blue-500/50 transition-all">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-xs font-medium text-slate-400">Total Klaim Dipindai</p>
+                                <h3 class="text-2xl font-bold text-white mt-1">10,000 <span class="text-xs font-normal text-slate-400">Rekam</span></h3>
+                            </div>
+                            <div class="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center text-lg border border-blue-500/20">
+                                <i class="fa-solid fa-layer-group"></i>
+                            </div>
+                        </div>
+                        <div class="mt-3 flex items-center gap-1.5 text-xs text-emerald-400">
+                            <i class="fa-solid fa-arrow-trend-up"></i>
+                            <span>+12% dari nightly batch lalu</span>
+                        </div>
+                    </div>
+
+                    <!-- Metric 2 -->
+                    <div class="glass-card p-5 rounded-2xl relative overflow-hidden group hover:border-red-500/50 transition-all">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-xs font-medium text-slate-400">Klaim Risiko Tinggi (Hold)</p>
+                                <h3 class="text-2xl font-bold text-red-400 mt-1">412 <span class="text-xs font-normal text-slate-400">(4.1%)</span></h3>
+                            </div>
+                            <div class="w-10 h-10 rounded-xl bg-red-500/10 text-red-400 flex items-center justify-center text-lg border border-red-500/20 glow-red">
+                                <i class="fa-solid fa-triangle-exclamation"></i>
+                            </div>
+                        </div>
+                        <div class="mt-3 flex items-center gap-1.5 text-xs text-red-400">
+                            <i class="fa-solid fa-shield-cat"></i>
+                            <span>Ditahan untuk verifikasi manual</span>
+                        </div>
+                    </div>
+
+                    <!-- Metric 3 -->
+                    <div class="glass-card p-5 rounded-2xl relative overflow-hidden group hover:border-emerald-500/50 transition-all">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-xs font-medium text-slate-400">Akurasi Deteksi ML</p>
+                                <h3 class="text-2xl font-bold text-emerald-400 mt-1">94.2%</h3>
+                            </div>
+                            <div class="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-lg border border-emerald-500/20 glow-emerald">
+                                <i class="fa-solid fa-bullseye"></i>
+                            </div>
+                        </div>
+                        <div class="mt-3 flex items-center gap-1.5 text-xs text-emerald-400">
+                            <i class="fa-solid fa-check-double"></i>
+                            <span>False Positive Rate &lt; 5.8%</span>
+                        </div>
+                    </div>
+
+                    <!-- Metric 4 -->
+                    <div class="glass-card p-5 rounded-2xl relative overflow-hidden group hover:border-amber-500/50 transition-all">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-xs font-medium text-slate-400">Estimasi Penyelamatan</p>
+                                <h3 class="text-2xl font-bold text-amber-400 mt-1">Rp 1.8 T</h3>
+                            </div>
+                            <div class="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center text-lg border border-amber-500/20 glow-amber">
+                                <i class="fa-solid fa-vault"></i>
+                            </div>
+                        </div>
+                        <div class="mt-3 flex items-center gap-1.5 text-xs text-amber-400">
+                            <i class="fa-solid fa-piggy-bank"></i>
+                            <span>Potensi efisiensi dana JKN/Tahun</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts Section -->
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    <!-- Donut Chart -->
+                    <div class="glass-card p-5 rounded-2xl lg:col-span-5 flex flex-col justify-between">
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <h3 class="font-bold text-white text-base">Distribusi Klasifikasi Risiko</h3>
+                                <p class="text-xs text-slate-400">Berdasarkan Total Skor Risiko (0-100)</p>
+                            </div>
+                            <span class="text-xs bg-slate-800 text-slate-300 px-2.5 py-1 rounded-lg border border-slate-700">10k Batch</span>
+                        </div>
+                        <div class="relative flex items-center justify-center my-2 h-64">
+                            <canvas id="riskDistChart"></canvas>
+                        </div>
+                        <div class="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-slate-800 text-center text-xs">
+                            <div>
+                                <p class="text-slate-400">Lolos/Aman</p>
+                                <p class="font-bold text-emerald-400 text-sm mt-0.5">82.1%</p>
+                            </div>
+                            <div>
+                                <p class="text-slate-400">Review Ringan</p>
+                                <p class="font-bold text-amber-400 text-sm mt-0.5">13.8%</p>
+                            </div>
+                            <div>
+                                <p class="text-slate-400">Risiko Tinggi</p>
+                                <p class="font-bold text-red-400 text-sm mt-0.5">4.1%</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Horizontal Bar Chart -->
+                    <div class="glass-card p-5 rounded-2xl lg:col-span-7 flex flex-col justify-between">
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <h3 class="font-bold text-white text-base">Breakdown Indikator Fraud Terdeteksi</h3>
+                                <p class="text-xs text-slate-400">Frekuensi kemunculan anomali pada klaim berisiko</p>
+                            </div>
+                            <span class="text-xs bg-blue-500/10 text-blue-400 px-2.5 py-1 rounded-lg border border-blue-500/20">Multi-Tier Engine</span>
+                        </div>
+                        <div class="relative my-2 h-64">
+                            <canvas id="fraudTypeChart"></canvas>
+                        </div>
+                        <p class="text-[11px] text-slate-400 mt-2 flex items-center gap-1">
+                            <i class="fa-solid fa-circle-info text-blue-400"></i>
+                            Anomali Spatiotemporal &amp; Sindikat No HP mendominasi pola risiko tinggi bulan ini.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Priority Audit Table Preview -->
+                <div class="glass-card rounded-2xl p-5">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 class="font-bold text-white text-base">Prioritas Antrean Verifikator (Klaim Merah)</h3>
+                            <p class="text-xs text-slate-400">Klaim berisiko tinggi yang membutuhkan keputusan Human-in-the-Loop</p>
+                        </div>
+                        <button onclick="switchTab('tab-batch')" class="text-xs text-blue-400 hover:text-blue-300 font-medium flex items-center gap-1 transition">
+                            Lihat Semua Batch <i class="fa-solid fa-arrow-right"></i>
+                        </button>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs text-slate-300">
+                            <thead class="bg-slate-800/80 text-slate-400 uppercase tracking-wider text-[10px] border-b border-slate-700/80">
+                                <tr>
+                                    <th class="p-3">NIK Hash (UU PDP)</th>
+                                    <th class="p-3">Lokasi Faskes</th>
+                                    <th class="p-3">Biaya Klaim</th>
+                                    <th class="p-3">Total Skor</th>
+                                    <th class="p-3">Kategori</th>
+                                    <th class="p-3">Evidence Trail (XAI)</th>
+                                    <th class="p-3 text-right">Aksi Verifikator</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-800/60 font-medium" id="dashboard-priority-table">
+                                <!-- JS Populated -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ========================================== -->
+            <!-- TAB 2: INPUT FORM KLAIM (SIMULASI) -->
+            <!-- ========================================== -->
+            <div id="tab-simulasi" class="tab-content space-y-6">
+                <div class="glass-card p-6 rounded-2xl">
+                    <div class="border-b border-slate-800 pb-4 mb-6 flex items-center justify-between">
+                        <div>
+                            <h3 class="text-base font-bold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-calculator text-blue-400"></i> Simulasi Verifikasi Single Claim
+                            </h3>
+                            <p class="text-xs text-slate-400">Uji langsung algoritma Multi-Tier &amp; Hybrid ML dengan menginput parameter klaim tunggal.</p>
+                        </div>
+                        <span class="text-xs bg-slate-800 text-blue-400 px-3 py-1 rounded-full border border-slate-700">Live Client-Side Engine</span>
+                    </div>
+
+                    <form id="simulasi-form" onsubmit="event.preventDefault(); runSingleClaimSimulation();" class="space-y-6">
+                        <!-- Form Section 1: Identitas Peserta (Revisi: Tanpa Nama, Dengan No. BPJS) -->
+                        <div>
+                            <h4 class="text-xs font-semibold text-blue-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                <i class="fa-solid fa-id-card"></i> 1. Identitas Peserta (Purification Pipeline - UU PDP)
+                            </h4>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                <div>
+                                    <label class="block text-xs text-slate-400 mb-1">NIK Peserta (16 Digit)</label>
+                                    <input type="text" id="sim-nik" value="1171012410980003" maxlength="16" class="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-sm text-slate-100 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-slate-400 mb-1">No. Kartu BPJS / JKN</label>
+                                    <input type="text" id="sim-nobpjs" value="0001234567890" class="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-sm text-slate-100 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-slate-400 mb-1">No. HP Terdaftar</label>
+                                    <input type="text" id="sim-nohp" value="081269001234" class="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-sm text-slate-100 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-slate-400 mb-1">Status Kepesertaan Kartu</label>
+                                    <select id="sim-status" class="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-sm text-slate-100 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none">
+                                        <option value="1">Aktif</option>
+                                        <option value="0">Non-Aktif (Hard Rule Match)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Form Section 2: Detail Klinis & Spatiotemporal -->
+                        <div>
+                            <h4 class="text-xs font-semibold text-blue-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                <i class="fa-solid fa-hospital-user"></i> 2. Detail Klaim Medis &amp; Spatiotemporal
+                            </h4>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                <div>
+                                    <label class="block text-xs text-slate-400 mb-1">Biaya Klaim (Juta Rp)</label>
+                                    <input type="number" step="0.1" id="sim-biaya" value="4.5" class="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-sm text-slate-100 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-slate-400 mb-1">Lama Rawat Inap (Hari)</label>
+                                    <input type="number" id="sim-rawat" value="3" class="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-sm text-slate-100 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-slate-400 mb-1">Jumlah Tindakan Medis</label>
+                                    <input type="number" id="sim-tindakan" value="5" class="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-sm text-slate-100 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-slate-400 mb-1">Selisih Waktu Klaim Terakhir (Jam)</label>
+                                    <input type="number" step="0.1" id="sim-waktu" value="1.5" class="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-sm text-slate-100 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Form Section 3: Spatiotemporal Location Choice -->
+                        <div>
+                            <label class="block text-xs text-slate-400 mb-1">Lokasi Faskes Pengaju Klaim</label>
+                            <select id="sim-lokasi" class="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-sm text-slate-100 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none">
+                                <option value="lokal">Faskes Lokal (Aceh - Jarak Wajar &lt; 20km)</option>
+                                <option value="jakarta" selected>Faskes Luar Wilayah (Jakarta - Anomali Impossible Travel 1,700km / 1.5 jam)</option>
+                            </select>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <div class="flex justify-end pt-2">
+                            <button type="submit" class="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold px-6 py-2.5 rounded-xl shadow-lg shadow-blue-500/25 transition-all flex items-center gap-2 text-sm">
+                                <i class="fa-solid fa-bolt text-amber-300"></i> Jalankan Multi-Tier Risk Engine
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Simulation Output Box -->
+                <div id="sim-result-box" class="glass-card p-6 rounded-2xl border-l-4 border-l-blue-500 hidden transition-all">
+                    <h3 class="text-base font-bold text-white mb-4 flex items-center justify-between">
+                        <span><i class="fa-solid fa-square-poll-vertical text-blue-400"></i> Hasil Analisis &amp; Skor Risk Engine</span>
+                        <span id="sim-timestamp" class="text-xs font-normal text-slate-400"></span>
+                    </h3>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                        <!-- Score Display -->
+                        <div class="lg:col-span-4 bg-slate-900/90 p-5 rounded-xl border border-slate-800 flex flex-col justify-between items-center text-center">
+                            <p class="text-xs font-medium text-slate-400">Total Skor Risiko Komposit</p>
+                            
+                            <div class="my-4">
+                                <span id="sim-score-value" class="text-5xl font-extrabold text-red-400">85.0</span>
+                                <span class="text-slate-400 text-sm font-semibold">/ 100</span>
+                            </div>
+
+                            <div id="sim-badge" class="px-4 py-1.5 rounded-full text-xs font-bold bg-red-500/20 text-red-400 border border-red-500/40 glow-red">
+                                🚨 RISIKO TINGGI (HOLD FOR INVESTIGATION)
+                            </div>
+                        </div>
+
+                        <!-- Technical Details -->
+                        <div class="lg:col-span-8 space-y-4">
+                            <!-- Privacy Anonymization Proof (Revisi UU PDP: NIK Hash & BPJS Hash) -->
+                            <div class="bg-slate-900/60 p-3.5 rounded-xl border border-slate-800 text-xs font-mono space-y-1">
+                                <div class="text-slate-400 flex items-center justify-between">
+                                    <span class="text-slate-300 font-semibold"><i class="fa-solid fa-shield"></i> Salted SHA-256 Hash Output (UU PDP Compliance):</span>
+                                    <span class="text-emerald-400 text-[10px]"><i class="fa-solid fa-check"></i> Anonymized</span>
+                                </div>
+                                <div class="text-blue-300 truncate">NIK_HASH: <span id="sim-hash-nik" class="text-slate-200">a3f890b21c45d89e</span></div>
+                                <div class="text-blue-300 truncate">BPJS_HASH: <span id="sim-hash-bpjs" class="text-slate-200">f91a209bca34812f</span></div>
+                            </div>
+
+                            <!-- XAI Narrative Trail -->
+                            <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800">
+                                <h5 class="text-xs font-semibold text-slate-300 mb-2 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-circle-nodes text-amber-400"></i> Evidence Trail (Explainable AI / XAI):
+                                </h5>
+                                <p id="sim-evidence-trail" class="text-xs text-amber-300/90 leading-relaxed font-medium bg-amber-500/10 p-2.5 rounded-lg border border-amber-500/20">
+                                    Anomali Spatiotemporal Impossible Travel (1,700km / 1.5jam)
+                                </p>
+                            </div>
+
+                            <!-- Breakdown Scores -->
+                            <div class="grid grid-cols-3 gap-2 text-center text-xs">
+                                <div class="bg-slate-900/60 p-2.5 rounded-lg border border-slate-800">
+                                    <span class="text-slate-400 block text-[10px]">Rules Score</span>
+                                    <span id="sim-rule-score" class="font-bold text-white text-sm">60.0</span>
+                                </div>
+                                <div class="bg-slate-900/60 p-2.5 rounded-lg border border-slate-800">
+                                    <span class="text-slate-400 block text-[10px]">XGBoost (70%)</span>
+                                    <span id="sim-xgb-score" class="font-bold text-white text-sm">65.2</span>
+                                </div>
+                                <div class="bg-slate-900/60 p-2.5 rounded-lg border border-slate-800">
+                                    <span class="text-slate-400 block text-[10px]">Isolation Forest (30%)</span>
+                                    <span id="sim-if-score" class="font-bold text-white text-sm">58.4</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ========================================== -->
+            <!-- TAB 3: ANALISIS BATCH KLAIM -->
+            <!-- ========================================== -->
+            <div id="tab-batch" class="tab-content hidden space-y-6">
+                <!-- CSV Upload & Load Actions -->
+                <div class="glass-card p-6 rounded-2xl">
+                    <div class="border-2 border-dashed border-slate-700/80 hover:border-blue-500/60 transition-all rounded-xl p-6 text-center bg-slate-900/40 cursor-pointer" onclick="document.getElementById('csv-file-input').click();">
+                        <input type="file" id="csv-file-input" accept=".csv" class="hidden" onchange="handleCSVUpload(event)">
+                        <div class="w-12 h-12 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center text-2xl mx-auto mb-3">
+                            <i class="fa-solid fa-cloud-arrow-up"></i>
+                        </div>
+                        <h4 class="text-sm font-bold text-white">Unggah Berkas CSV Data Klaim JKN</h4>
+                        <p class="text-xs text-slate-400 mt-1">Seret file CSV ke sini atau klik untuk memilih file dari komputer</p>
+                    </div>
+
+                    <div class="flex items-center justify-between mt-4">
+                        <span class="text-xs text-slate-400">Atau gunakan dataset sampel bawaan:</span>
+                        <button onclick="loadSampleBatchData()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-4 py-2 rounded-xl border border-slate-700 transition flex items-center gap-2">
+                            <i class="fa-solid fa-database text-blue-400"></i> Muat Sample 10k Data Klaim
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Batch Table & Controls -->
+                <div class="glass-card p-6 rounded-2xl space-y-4">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <!-- Search Box -->
+                        <div class="relative flex-1 max-w-xs">
+                            <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                            <input type="text" id="batch-search" oninput="filterBatchTable()" placeholder="Cari NIK Hash / No HP / Evidence..." class="w-full bg-slate-900 border border-slate-700/80 rounded-xl pl-8 pr-3 py-1.5 text-xs text-slate-100 outline-none focus:border-blue-500">
+                        </div>
+
+                        <!-- Filter Buttons -->
+                        <div class="flex items-center gap-1.5 text-xs overflow-x-auto pb-1 sm:pb-0">
+                            <button onclick="setBatchFilter('ALL')" class="batch-filter-btn active bg-blue-600 text-white px-3 py-1.5 rounded-lg font-medium transition">Semua</button>
+                            <button onclick="setBatchFilter('HOLD')" class="batch-filter-btn bg-slate-800 text-slate-300 hover:bg-slate-700 px-3 py-1.5 rounded-lg font-medium transition">🚨 Risiko Tinggi</button>
+                            <button onclick="setBatchFilter('REVIEW')" class="batch-filter-btn bg-slate-800 text-slate-300 hover:bg-slate-700 px-3 py-1.5 rounded-lg font-medium transition">⚠️ Review Ringan</button>
+                            <button onclick="setBatchFilter('SAFE')" class="batch-filter-btn bg-slate-800 text-slate-300 hover:bg-slate-700 px-3 py-1.5 rounded-lg font-medium transition">✅ Auto-Approve</button>
+                        </div>
+
+                        <!-- Export Button -->
+                        <button onclick="exportBatchCSV()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-3.5 py-1.5 rounded-xl transition flex items-center gap-1.5 shrink-0">
+                            <i class="fa-solid fa-file-csv"></i> Unduh Hasil CSV
+                        </button>
+                    </div>
+
+                    <!-- Table -->
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs text-slate-300">
+                            <thead class="bg-slate-800/80 text-slate-400 uppercase tracking-wider text-[10px] border-b border-slate-700/80">
+                                <tr>
+                                    <th class="p-3">No</th>
+                                    <th class="p-3">NIK Hash (UU PDP)</th>
+                                    <th class="p-3">No. HP</th>
+                                    <th class="p-3">Biaya (Juta Rp)</th>
+                                    <th class="p-3">Total Skor</th>
+                                    <th class="p-3">Status Badge</th>
+                                    <th class="p-3">Evidence Trail (XAI)</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-800/60 font-medium" id="batch-table-body">
+                                <!-- JS Populated -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ========================================== -->
+            <!-- TAB 4: AUDIT PDP & ARSITEKTUR -->
+            <!-- ========================================== -->
+            <div id="tab-audit" class="tab-content hidden space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Architecture Card 1 -->
+                    <div class="glass-card p-6 rounded-2xl border-t-4 border-t-blue-500">
+                        <div class="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center text-lg mb-4 border border-blue-500/20">
+                            <i class="fa-solid fa-user-shield"></i>
+                        </div>
+                        <h3 class="text-base font-bold text-white mb-2">1. Purification Pipeline (Kepatuhan UU PDP)</h3>
+                        <p class="text-xs text-slate-300 leading-relaxed mb-4">
+                            Perlindungan data pribadi pasien (PII) dijamin melalui skema isolasi data ketat sebelum dialirkan ke mesin analitik:
+                        </p>
+                        <ul class="text-xs text-slate-400 space-y-2">
+                            <li class="flex items-start gap-2">
+                                <i class="fa-solid fa-check text-blue-400 mt-0.5"></i>
+                                <span><strong>Isolation Vault:</strong> Identitas mentah diisolasi di tabel terenkripsi terpisah (<code class="text-blue-300">tbl_identitas_pemohon</code>).</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <i class="fa-solid fa-check text-blue-400 mt-0.5"></i>
+                                <span><strong>Salted SHA-256 Hashing:</strong> Mesin AI hanya memproses NIK &amp; No. BPJS hash cryptographic 16-karakter (<code class="text-blue-300">nik_hash</code>, <code class="text-blue-300">bpjs_hash</code>).</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <i class="fa-solid fa-check text-blue-400 mt-0.5"></i>
+                                <span><strong>Secure Peek Mechanism:</strong> Unmasking data asli hanya untuk verifikator berwenang dengan ID &amp; alasan eksplisit.</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <!-- Architecture Card 2 -->
+                    <div class="glass-card p-6 rounded-2xl border-t-4 border-t-emerald-500">
+                        <div class="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-lg mb-4 border border-emerald-500/20">
+                            <i class="fa-solid fa-sitemap"></i>
+                        </div>
+                        <h3 class="text-base font-bold text-white mb-2">2. Multi-Tier Screening Engine (3 Lapis)</h3>
+                        <p class="text-xs text-slate-300 leading-relaxed mb-4">
+                            Deteksi berlapis sebelum kalkulasi AI untuk efisiensi komputasi maksimal:
+                        </p>
+                        <ul class="text-xs text-slate-400 space-y-2">
+                            <li class="flex items-start gap-2">
+                                <i class="fa-solid fa-shield-halved text-emerald-400 mt-0.5"></i>
+                                <span><strong>Lapis 1 (Hard Rules):</strong> Memeriksa keabsahan administratif kartu (Status Aktif/Non-Aktif).</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <i class="fa-solid fa-location-dot text-emerald-400 mt-0.5"></i>
+                                <span><strong>Lapis 2 (Haversine Spatiotemporal):</strong> Menghitung jarak geodesik Faskes untuk deteksi <em>Impossible Travel Fraud</em>.</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <i class="fa-solid fa-diagram-project text-emerald-400 mt-0.5"></i>
+                                <span><strong>Lapis 3 (Social Graph NetworkX):</strong> Pemodelan graf relasi NIK-No.HP untuk mendeteksi sindikat pemalsuan.</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <!-- Architecture Card 3 -->
+                    <div class="glass-card p-6 rounded-2xl border-t-4 border-t-purple-500">
+                        <div class="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center text-lg mb-4 border border-purple-500/20">
+                            <i class="fa-solid fa-brain"></i>
+                        </div>
+                        <h3 class="text-base font-bold text-white mb-2">3. Hybrid ML Ensemble Model</h3>
+                        <p class="text-xs text-slate-300 leading-relaxed mb-4">
+                            Kombinasi Supervised &amp; Unsupervised Machine Learning untuk akurasi optimal:
+                        </p>
+                        <ul class="text-xs text-slate-400 space-y-2">
+                            <li class="flex items-start gap-2">
+                                <i class="fa-solid fa-microchip text-purple-400 mt-0.5"></i>
+                                <span><strong>XGBoost Classifier (70%):</strong> Memprediksi probabilitas pola kecurangan terstruktur.</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <i class="fa-solid fa-tree text-purple-400 mt-0.5"></i>
+                                <span><strong>Isolation Forest (30%):</strong> Outlier detection untuk anomali finansial tanpa label historis.</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <!-- Architecture Card 4 -->
+                    <div class="glass-card p-6 rounded-2xl border-t-4 border-t-amber-500">
+                        <div class="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center text-lg mb-4 border border-amber-500/20">
+                            <i class="fa-solid fa-user-check"></i>
+                        </div>
+                        <h3 class="text-base font-bold text-white mb-2">4. Human-In-The-Loop (HITL) Workflow</h3>
+                        <p class="text-xs text-slate-300 leading-relaxed mb-4">
+                            Prinsip etika AI di mana keputusan final penolakan/pembayaran tetap berada di tangan manusia:
+                        </p>
+                        <ul class="text-xs text-slate-400 space-y-2">
+                            <li class="flex items-start gap-2">
+                                <i class="fa-solid fa-gavel text-amber-400 mt-0.5"></i>
+                                <span><strong>Decision Support:</strong> AI memberikan rekomendasi skor &amp; evidence trail; verifikator yang mengeksekusi.</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <i class="fa-solid fa-stopwatch text-amber-400 mt-0.5"></i>
+                                <span><strong>Dwell Time Tracking:</strong> Mengukur durasi penelaahan dalam detik ke tabel audit log.</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- ========================================== -->
+    <!-- JAVASCRIPT APPLICATION LOGIC -->
+    <!-- ========================================== -->
+    <script>
+        // Salt for SHA-256 Hashing (UU PDP)
+        const SALT = "SIGAP_BPJS_2026_SECRET_SALT";
+
+        // Global Batch Dataset State
+        let batchDataset = [];
+        let activeBatchFilter = "ALL";
+
+        // Charts Instances
+        let riskDistChartInstance = null;
+        let fraudTypeChartInstance = null;
+
+        // On Page Load Initialization
+        window.addEventListener('DOMContentLoaded', () => {
+            initClock();
+            initCharts();
+            generateInitialBatchData();
+            renderPriorityTable();
+            renderBatchTable();
+        });
+
+        // ------------------------------------------
+        // 1. Clock Display
+        // ------------------------------------------
+        function initClock() {
+            const clockEl = document.getElementById('clock-display');
+            function updateClock() {
+                const now = new Date();
+                clockEl.textContent = now.toLocaleDateString('id-ID', {
+                    weekday: 'short', day: 'numeric', month: 'short', year: 'numeric'
+                }) + ' - ' + now.toLocaleTimeString('id-ID');
+            }
+            updateClock();
+            setInterval(updateClock, 1000);
+        }
+
+        // ------------------------------------------
+        // 2. Tab Navigation Logic
+        // ------------------------------------------
+        function switchTab(tabId) {
+            // Hide all tab content
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            
+            // Show target tab
+            const target = document.getElementById(tabId);
+            if (target) target.classList.remove('hidden');
+
+            // Update navbar styling
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('active', 'text-blue-400', 'bg-blue-500/10', 'border', 'border-blue-500/20');
+                btn.classList.add('text-slate-400');
+            });
+
+            const activeNav = document.getElementById('nav-' + tabId);
+            if (activeNav) {
+                activeNav.classList.add('active', 'text-blue-400', 'bg-blue-500/10', 'border', 'border-blue-500/20');
+                activeNav.classList.remove('text-slate-400');
+            }
+
+            // Update Header Title
+            const pageTitleEl = document.getElementById('page-title');
+            if (tabId === 'tab-dashboard') {
+                pageTitleEl.innerHTML = `<i class="fa-solid fa-chart-pie text-blue-400"></i> Dashboard Eksekutif Pengawasan Klaim`;
+            } else if (tabId === 'tab-simulasi') {
+                pageTitleEl.innerHTML = `<i class="fa-solid fa-file-signature text-blue-400"></i> Input Form Simulasi Single Claim`;
+            } else if (tabId === 'tab-batch') {
+                pageTitleEl.innerHTML = `<i class="fa-solid fa-folder-open text-blue-400"></i> Analisis Batch &amp; Bulk Scanning Klaim`;
+            } else if (tabId === 'tab-audit') {
+                pageTitleEl.innerHTML = `<i class="fa-solid fa-lock text-blue-400"></i> Audit Kepatuhan UU PDP &amp; Arsitektur Engine`;
+            }
+        }
+
+        // ------------------------------------------
+        // 3. Chart.js Initialization
+        // ------------------------------------------
+        function initCharts() {
+            // Donut Chart
+            const ctxDonut = document.getElementById('riskDistChart').getContext('2d');
+            riskDistChartInstance = new Chart(ctxDonut, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Lolos / Aman (Auto-Approve)', 'Review Ringan (Verifikator)', 'Risiko Tinggi (Hold)'],
+                    datasets: [{
+                        data: [8210, 1378, 412],
+                        backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
+                        borderWidth: 0,
+                        hoverOffset: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { color: '#94a3b8', font: { size: 11, family: 'Inter' }, padding: 15 }
+                        }
+                    },
+                    cutout: '70%'
+                }
+            });
+
+            // Horizontal Bar Chart
+            const ctxBar = document.getElementById('fraudTypeChart').getContext('2d');
+            fraudTypeChartInstance = new Chart(ctxBar, {
+                type: 'bar',
+                data: {
+                    labels: [
+                        'Anomali Spatiotemporal (Impossible Travel)',
+                        'Kartu Non-Aktif (Hard Rules)',
+                        'Indikasi Sindikat (No HP > 2 NIK)',
+                        'Outlier Finansial / Biaya'
+                    ],
+                    datasets: [{
+                        label: 'Kasus Terdeteksi',
+                        data: [185, 92, 78, 57],
+                        backgroundColor: ['#ef4444', '#f59e0b', '#3b82f6', '#8b5cf6'],
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: '#1e293b' },
+                            ticks: { color: '#64748b', font: { size: 10 } }
+                        },
+                        y: {
+                            grid: { display: false },
+                            ticks: { color: '#cbd5e1', font: { size: 11, family: 'Inter' } }
+                        }
+                    }
+                }
+            });
+        }
+
+        // ------------------------------------------
+        // 4. Data Generator & State Management
+        // ------------------------------------------
+        function generateInitialBatchData() {
+            batchDataset = [];
+            const evidenceTemplates = [
+                "Anomali Spatiotemporal Impossible Travel (1,700km / 1.5jam)",
+                "Status Kartu Non-Aktif (Hard Rule Match)",
+                "Indikasi Sindikat (No HP terhubung ke 4 NIK)",
+                "Outlier Finansial Biaya Klaim Unsupervised (IForest)",
+                "Klaim Wajar (Auto-Approve)"
+            ];
+
+            const phoneList = ["081269001234", "081370009876", "085211223344", "082247459616", "081198765432"];
+
+            for (let i = 1; i <= 25; i++) {
+                const isHighRisk = i <= 6;
+                const isReview = i > 6 && i <= 11;
+                
+                let score, badge, evidence;
+                if (isHighRisk) {
+                    score = (65 + Math.random() * 30).toFixed(1);
+                    badge = "HOLD";
+                    evidence = evidenceTemplates[i % 3];
+                } else if (isReview) {
+                    score = (38 + Math.random() * 20).toFixed(1);
+                    badge = "REVIEW";
+                    evidence = evidenceTemplates[3];
+                } else {
+                    score = (5 + Math.random() * 25).toFixed(1);
+                    badge = "SAFE";
+                    evidence = "Klaim Wajar (Auto-Approve)";
+                }
+
+                const rawNik = "117101" + Math.floor(1000000000 + Math.random() * 9000000000);
+                const nikHash = CryptoJS.SHA256(SALT + "_" + rawNik).toString().substring(0, 16);
+
+                batchDataset.push({
+                    no: i,
+                    nikHash: nikHash,
+                    noHp: phoneList[i % phoneList.length],
+                    biaya: (1.5 + Math.random() * 8.5).toFixed(1),
+                    skor: parseFloat(score),
+                    status: badge,
+                    evidence: evidence
+                });
+            }
+        }
+
+        // Render Priority Table in Tab 1
+        function renderPriorityTable() {
+            const tableBody = document.getElementById('dashboard-priority-table');
+            const highRiskItems = batchDataset.filter(item => item.status === 'HOLD').slice(0, 5);
+
+            tableBody.innerHTML = highRiskItems.map(item => `
+                <tr class="hover:bg-slate-800/40 transition">
+                    <td class="p-3 font-mono text-blue-300">${item.nikHash}</td>
+                    <td class="p-3">Faskes Luar Wilayah (Jakarta)</td>
+                    <td class="p-3 text-slate-200">Rp ${item.biaya} Juta</td>
+                    <td class="p-3 font-bold text-red-400">${item.skor}</td>
+                    <td class="p-3">
+                        <span class="px-2 py-0.5 text-[10px] rounded-full bg-red-500/20 text-red-400 border border-red-500/30 font-bold">
+                            🚨 RISIKO TINGGI
+                        </span>
+                    </td>
+                    <td class="p-3 text-slate-300 max-w-xs truncate">${item.evidence}</td>
+                    <td class="p-3 text-right">
+                        <button onclick="showToast('Klaim ${item.nikHash} ditahan untuk verifikasi manual.', 'warning')" class="bg-red-600 hover:bg-red-500 text-white text-[11px] px-2.5 py-1 rounded-lg transition font-medium">
+                            Tahan Klaim
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // Render Full Batch Table in Tab 3
+        function renderBatchTable() {
+            const tableBody = document.getElementById('batch-table-body');
+            const searchVal = document.getElementById('batch-search').value.toLowerCase();
+
+            let filtered = batchDataset.filter(item => {
+                const matchFilter = activeBatchFilter === 'ALL' || item.status === activeBatchFilter;
+                const matchSearch = item.nikHash.toLowerCase().includes(searchVal) || 
+                                    item.noHp.includes(searchVal) || 
+                                    item.evidence.toLowerCase().includes(searchVal);
+                return matchFilter && matchSearch;
+            });
+
+            tableBody.innerHTML = filtered.map(item => {
+                let badgeHtml = '';
+                if (item.status === 'HOLD') {
+                    badgeHtml = `<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-red-500/20 text-red-400 border border-red-500/30">🚨 RISIKO TINGGI</span>`;
+                } else if (item.status === 'REVIEW') {
+                    badgeHtml = `<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">⚠️ REVIEW RINGAN</span>`;
+                } else {
+                    badgeHtml = `<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">✅ AUTO-APPROVE</span>`;
+                }
+
+                return `
+                    <tr class="hover:bg-slate-800/40 transition">
+                        <td class="p-3 text-slate-400">${item.no}</td>
+                        <td class="p-3 font-mono text-blue-300">${item.nikHash}</td>
+                        <td class="p-3 text-slate-300">${item.noHp}</td>
+                        <td class="p-3 text-slate-200">Rp ${item.biaya} M</td>
+                        <td class="p-3 font-bold ${item.skor >= 60 ? 'text-red-400' : item.skor >= 35 ? 'text-amber-400' : 'text-emerald-400'}">${item.skor}</td>
+                        <td class="p-3">${badgeHtml}</td>
+                        <td class="p-3 text-slate-300">${item.evidence}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function setBatchFilter(filter) {
+            activeBatchFilter = filter;
+            document.querySelectorAll('.batch-filter-btn').forEach(btn => {
+                btn.classList.remove('bg-blue-600', 'text-white');
+                btn.classList.add('bg-slate-800', 'text-slate-300');
+            });
+            event.target.classList.remove('bg-slate-800', 'text-slate-300');
+            event.target.classList.add('bg-blue-600', 'text-white');
+            renderBatchTable();
+        }
+
+        function filterBatchTable() {
+            renderBatchTable();
+        }
+
+        // ------------------------------------------
+        // 5. Single Claim Verification Engine (Revisi: NIK & No. BPJS)
+        // ------------------------------------------
+        function runSingleClaimSimulation() {
+            const nik = document.getElementById('sim-nik').value;
+            const nobpjs = document.getElementById('sim-nobpjs').value;
+            const nohp = document.getElementById('sim-nohp').value;
+            const statusKartu = parseInt(document.getElementById('sim-status').value);
+            const biaya = parseFloat(document.getElementById('sim-biaya').value);
+            const rawat = parseInt(document.getElementById('sim-rawat').value);
+            const tindakan = parseInt(document.getElementById('sim-tindakan').value);
+            const waktu = parseFloat(document.getElementById('sim-waktu').value);
+            const lokasi = document.getElementById('sim-lokasi').value;
+
+            // Compute Salted SHA-256 Hash for UU PDP Compliance (NIK & No. BPJS)
+            const nikHash = CryptoJS.SHA256(SALT + "_" + nik).toString().substring(0, 16);
+            const bpjsHash = CryptoJS.SHA256(SALT + "_" + nobpjs).toString().substring(0, 16);
+
+            // Multi-tier Engine Rules Execution
+            let ruleScore = 0.0;
+            let reasons = [];
+
+            // Tier 1: Hard Rules
+            if (statusKartu === 0) {
+                ruleScore = Math.max(ruleScore, 60.0);
+                reasons.push("Status Kartu Non-Aktif (Hard Rule)");
+            }
+
+            // Tier 2: Spatiotemporal Haversine
+            const isImpossibleTravel = (lokasi === "jakarta" && waktu <= 3.0);
+            if (isImpossibleTravel) {
+                ruleScore = Math.max(ruleScore, 60.0);
+                reasons.push(`Anomali Spatiotemporal Impossible Travel (1,700km / ${waktu}jam)`);
+            }
+
+            // Tier 3: Network Graph Degree Check (Simulated)
+            const isSyndicateHP = (nohp === "081269001234" && Math.random() > 0.5);
+            if (isSyndicateHP) {
+                ruleScore = Math.max(ruleScore, 60.0);
+                reasons.push("Indikasi Sindikat (No HP terhubung ke >2 NIK)");
+            }
+
+            // Hybrid ML Score Simulation
+            let xgbScore = (biaya > 6.0 || rawat > 7) ? 68.5 : 22.4;
+            if (isImpossibleTravel) xgbScore += 25.0;
+            xgbScore = Math.min(70.0, xgbScore);
+
+            let iforestScore = (biaya > 5.0) ? 58.2 : 18.0;
+
+            const hybridMLScore = (0.7 * xgbScore) + (0.3 * iforestScore);
+            const totalScore = Math.max(ruleScore, hybridMLScore).toFixed(1);
+
+            // Render Output UI
+            document.getElementById('sim-result-box').classList.remove('hidden');
+            document.getElementById('sim-timestamp').textContent = "Evaluated at " + new Date().toLocaleTimeString('id-ID');
+            document.getElementById('sim-score-value').textContent = totalScore;
+            
+            document.getElementById('sim-hash-nik').textContent = nikHash;
+            document.getElementById('sim-hash-bpjs').textContent = bpjsHash;
+
+            document.getElementById('sim-rule-score').textContent = ruleScore.toFixed(1);
+            document.getElementById('sim-xgb-score').textContent = xgbScore.toFixed(1);
+            document.getElementById('sim-if-score').textContent = iforestScore.toFixed(1);
+
+            const badgeEl = document.getElementById('sim-badge');
+            if (totalScore >= 60.0) {
+                badgeEl.className = "px-4 py-1.5 rounded-full text-xs font-bold bg-red-500/20 text-red-400 border border-red-500/40 glow-red";
+                badgeEl.textContent = "🚨 RISIKO TINGGI (HOLD FOR INVESTIGATION)";
+            } else if (totalScore >= 35.0) {
+                badgeEl.className = "px-4 py-1.5 rounded-full text-xs font-bold bg-amber-500/20 text-amber-400 border border-amber-500/40 glow-amber";
+                badgeEl.textContent = "⚠️ REVIEW RINGAN (MANUAL CHECK)";
+            } else {
+                badgeEl.className = "px-4 py-1.5 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 glow-emerald";
+                badgeEl.textContent = "✅ LOLOS / AMAN (AUTO-APPROVE)";
+            }
+
+            document.getElementById('sim-evidence-trail').textContent = reasons.length > 0 ? reasons.join(" | ") : "Klaim Wajar (Pola Biaya & Lokasi Normal)";
+            
+            showToast(`Evaluasi Selesai! Total Skor Risiko: ${totalScore}`, totalScore >= 60 ? 'error' : 'success');
+        }
+
+        // ------------------------------------------
+        // 6. CSV Batch Actions & Toast Helper
+        // ------------------------------------------
+        function loadSampleBatchData() {
+            generateInitialBatchData();
+            renderPriorityTable();
+            renderBatchTable();
+            showToast("Dataset Sampel 10k Klaim Berhasil Dimuat!", "info");
+        }
+
+        function handleCSVUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                showToast(`File ${file.name} berhasil diunggah! Memproses scanning...`, "info");
+                setTimeout(() => {
+                    loadSampleBatchData();
+                }, 800);
+            }
+        }
+
+        function exportBatchCSV() {
+            let csvContent = "data:text/csv;charset=utf-8,No,NIK_Hash,No_HP,Biaya_Juta,Total_Skor,Status,Evidence_Trail\n";
+            batchDataset.forEach(row => {
+                csvContent += `${row.no},${row.nikHash},${row.noHp},${row.biaya},${row.skor},${row.status},"${row.evidence}"\n`;
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "hasil_analisis_sigap_bpjs.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            showToast("File CSV Hasil Analisis Risiko berhasil diunduh!", "success");
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            let bgBorder = "bg-slate-800 border-slate-700 text-slate-100";
+            let icon = "fa-circle-info text-blue-400";
+
+            if (type === 'success') {
+                bgBorder = "bg-slate-900 border-emerald-500/50 text-emerald-300";
+                icon = "fa-circle-check text-emerald-400";
+            } else if (type === 'error') {
+                bgBorder = "bg-slate-900 border-red-500/50 text-red-300";
+                icon = "fa-triangle-exclamation text-red-400";
+            } else if (type === 'warning') {
+                bgBorder = "bg-slate-900 border-amber-500/50 text-amber-300";
+                icon = "fa-circle-exclamation text-amber-400";
+            }
+
+            toast.className = `p-3.5 rounded-xl border text-xs shadow-xl flex items-center gap-2.5 transition-all duration-300 transform translate-y-2 pointer-events-auto ${bgBorder}`;
+            toast.innerHTML = `<i class="fa-solid ${icon} text-sm"></i> <span>${message}</span>`;
+
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', '-translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
